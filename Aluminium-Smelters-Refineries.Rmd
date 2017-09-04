@@ -1,0 +1,270 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+
+
+library(dplyr)
+library(ggalt)
+library(ggthemes)
+library(maps)
+library(ggplot2)
+library(tidyverse)
+library(stringr)
+library(forcats)
+library(ggmap)
+library(rvest)
+library(extrafont)
+font_import()
+loadfonts()
+fonts()
+
+# scrap code
+#world <- map_data("world")
+#world <- world[world$region != "Antarctica",]
+#dat <- read.csv("smelters.csv")
+#dat <- filter(dat, Country != "Sweden")
+#gg <- ggplot()
+#gg <- gg + geom_map(data = world, map = world, 
+ #                   aes(x = long, y = lat, map_id = region), color = "white", fill = "#7f7f7f", size = 0.05, alpha = 1/4)
+#gg <- gg + geom_point(data = dat, 
+ #                     aes(x = Lon3, y = Lat3, color = Nation), size = 0.15, alpha = 1/100)
+#gg <- gg + scale_color_tableau()
+#gg <- gg + coord_proj("+proj=wintri")
+#gg <- gg + facet_wrap(~Nation)
+#gg <- gg + theme_map()
+#gg <- gg + theme(strip.background = element_blank())
+#gg <- gg + theme(legend.position = "none")
+#gg
+# ref: https://rud.is/b/2015/12/28/world-map-panel-plots-with-ggplot2-2-0-ggalt/
+
+geocodes.world_ports1<- geocode(expsa$Import_Country)
+expsa<- cbind(expsa, geocodes.world_ports1)
+head(expsa)
+
+expsa <- read.csv("smelters.csv")
+p <- ggplot()
+p <- p + geom_polygon( data=expsa, aes(x=long, y=lat, group = group),colour="white", fill="grey10" )
+p
+
+attach(expsa)
+str(expsa)
+View(expsa)
+glimpse(expsa)
+
+geocodes.world_ports1<- geocode(expsa$Import_Country)
+expsa<- cbind(expsa, geocodes.world_ports1)
+head(expsa)
+
+expsa<- mutate(expsa, Import_Country=as.factor(str_trim(Import_Country)), Import_Continent=as.factor(Import_Continent))
+head(expsa)
+
+expsa<- expsa %>%
+  group_by(Year) %>%
+  mutate(rank = min_rank(desc(US_Dollar_Value))) %>%
+  ungroup()
+glimpse(expsa)
+
+expsa %>% ncol()
+expsa %>% names()
+
+expsa<- select(expsa, rank, Year, Import_Country, Import_Continent, US_Dollar_Value, Tonnes, lon, lat, Data_Type, Month)
+expsa %>% ncol()
+glimpse(expsa)
+head(expsa, n =10)
+
+theme.porttheme1 <-  
+  theme(text = element_text(family = "Times New Roman", color = "#444444")) +
+  theme(plot.title = element_text(size = 24)) +
+  theme(plot.subtitle = element_text(size = 18)) +
+  theme(axis.title = element_text(size = 14)) +
+  theme(axis.title.y = element_text(angle = 0, vjust = .5, margin = margin(r = 15))) +
+  theme(axis.text = element_text(size = 10)) +
+  theme(axis.title.x = element_text(margin = margin(t = 20))) +
+  theme(legend.title = element_blank())
+theme.widebar1 <-
+  theme.porttheme1 +
+  theme(plot.title = element_text(size = 30)) +
+  theme(plot.subtitle = element_text(size = 20)) +
+  theme(legend.title = element_blank(), legend.background = element_blank()) +
+  theme(legend.text = element_text(size = 12)) +
+  theme(legend.position = c(.9,.55)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .4))
+theme.smallmult1 <- 
+  theme.porttheme1 +
+  theme(axis.text = element_text(size = 6)) +
+  theme(axis.text.x = element_text(angle = 90))
+expsa %>%
+  filter(Year == 2017) %>%
+  ggplot(aes(x=reorder(Import_Country, desc(US_Dollar_Value)), y=US_Dollar_Value))+
+  geom_bar(stat = "identity", fill = "darkred")+
+  labs(title="Top Import Country")+
+  labs(subtitle='2017, in order of US Dollar Value')+
+  labs(x = "Country", y = "Export\nUSD")+
+  scale_y_continuous(labels = scales::comma_format())+
+  theme.widebar1
+expsa %>%
+  filter(Year == 2017) %>%
+  ggplot(aes(x=reorder(Import_Country, US_Dollar_Value), y=US_Dollar_Value))+
+  geom_bar(stat = "identity", fill = "seagreen1")+
+  #geom_text(aes(label=US_Dollar_Value), hjust = 1:1, color="#FFFF00")+
+  scale_y_continuous(labels = scales::comma_format())+
+  coord_flip()+
+  labs(title="South Korea, Thailand had much higher volume\nthan other high-volume countries in 2017")+
+  labs(x = "Country", y = "Export Volume\nin US Dollar Value")+
+  theme.porttheme1
+
+expsa %>%
+  mutate(Asia_flag = ifelse(Import_Continent == "Asia", "Asia", "Other"))%>%
+  filter(Year == 2017)%>%
+  ggplot(aes(x=reorder(Import_Continent, desc(US_Dollar_Value)), y=US_Dollar_Value))+
+  geom_bar(stat = "identity", aes(fill = Asia_flag))+
+  scale_fill_manual(values = c("dark red","#999999"))+
+  labs(title = "More than half of the busiest ports were in Asia in 2017")+
+  labs(x = "Country", y = "Export Volume\nin US Dollar Value")+
+  theme.widebar1
+
+expsa %>%
+  ggplot(aes(x=Year, y=Tonnes, group = Import_Country))+
+  geom_line(color="deepskyblue", size= 1, na.rm = T)+
+  facet_wrap(~Import_Country)+
+  labs(title="Strong growth in South Korea, Thailand,\nShenzhen, Guangzhou")+
+  labs(subtitle = "2015 to 2017")+
+  labs(x="Import_Country" , y="Import\nVolume\n(Tonnes)")+
+  theme.smallmult1
+
+expsa %>%
+  mutate(port_highlight = ifelse(Import_Country == "Japan", "Japan", "Other")) %>%
+  ggplot(aes(x = Year, y = Tonnes, group = Import_Country)) +
+    geom_line(aes(color=port_highlight, alpha= port_highlight), size=1.5, na.rm = T)+
+    scale_color_manual(values = c("#999999", "dark red"))+
+    scale_alpha_manual(values = c(.3,1))+
+    labs(title="Japan's Alu import volume increased\nsubstantially from 2015 to 2017")+
+    labs(x="Year", y="Import\nVolume\n(Tonnes)")  +
+    theme.porttheme1
+
+expsa %>%
+  filter(Import_Country == "South Korea") %>%
+  ggplot(aes(x = Year, y = Tonnes, group = 1))+
+  geom_line(color = "deepskyblue2", size = 2)+
+  labs(title = "South Korea import volume also increased\nsubstantially from 2015 to 2017")+
+  labs(x = "Year", y = "Import\nVolume\n(Tonnes)")+
+  scale_y_continuous(limits = c(0,NA))+
+  theme.porttheme1
+
+expsa %>%
+  ggplot(aes(x = Year, y = rank, group = Import_Country))+
+  geom_line(size = 1, color = "dark red", na.rm = T)+
+  scale_y_reverse()+
+  facet_wrap(~Import_Country)+
+  labs(title = "Ranking over time of Sout Africa's busiest Import Country")+
+  labs(subtitle = "2015 to 2017")+
+  labs(x = "Year", y = "Rank")+
+  theme.smallmult1
+expsa %>%
+  ggplot(aes(x = Year, y = rank, group = Import_Continent))+
+  geom_line(size = 1, color = "dark red", na.rm = T)+
+  scale_y_reverse()+
+  facet_wrap(~Import_Continent)+
+  labs(title = "Ranking over time of Sout Africa's busiest Import Continent")+
+  labs(subtitle = "2015 to 2017")+
+  labs(x = "Year", y = "Rank")+
+  theme.smallmult1
+
+param.rank_n = 25
+expsa %>%
+  filter(rank <= param.rank_n)%>%
+  mutate(asia_flag = ifelse(Import_Country == "Asia", T,F))%>%
+  mutate(asia_labels = ifelse(asia_flag == T, Import_Country, "Other"))%>%
+  ggplot(aes(x = Year, y = rank, group = Import_Country))+
+  geom_line(aes(color = asia_labels, alpha = asia_flag), size = 2)+
+  geom_point(aes(color = asia_labels, alpha = asia_flag), size = 2.3)+
+  geom_point(color = "#FFFFFF", alpha = .8, size = .3)+
+  geom_text(data = expsa %>% filter(Year == "2017", rank <= param.rank_n), aes(label = Import_Country, x = '2017'), hjust = -.05, color = "#888888", size = 4)+
+  geom_text(data = expsa %>% filter(Year == "2015", rank <= param.rank_n), aes(label = Import_Country, x = '2015'), hjust = 1.5, color = "#888888", size = 4)+
+  scale_x_discrete(expand = c(.3, .3))+
+  scale_y_reverse(breaks = c(1,5,10,15,20,25))+
+  scale_alpha_discrete(range = c(.4, .9))+
+  labs(title = "Top Asian countries increased rank\nsubstantially from 2015 to 2017")+
+  labs(subtitle = "(Country ranks, by volume)")+
+  labs(x = "Year", y = "Rank")+
+  theme.porttheme1+
+  theme(panel.grid.major.x = element_line(color = "#F3F3F3"))+
+  theme(panel.grid.major.y = element_blank())+
+  theme(panel.grid.major = element_blank())+
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("#4e79a5","#f18f3b","#af7a0a","#e0585b","#5aa155","#edc958","#77b7b2","#BBBBBB","#FF34B3"))
+
+#=============
+# GET MAP DATA
+#=============  
+map.world_ploygon1 <- map_data("world")
+head(map.world_ploygon1)
+#We’ll plot the world map as one layer by using geom_polygon().
+#On top of the map, we’ll plot the Import Country as points by using geom_point().
+#=====================================
+# SIMPLE DOT DISTRIBUTION MAP
+#  - This will be useful just to see
+#    the data
+#  - It also serves as a good test
+#    for the more complex chart we're
+#    going to make next
+#=====================================
+expsa %>%
+  filter(Year == "2015")%>%
+  ggplot(aes(x = lon, y = lat))+
+  geom_polygon(data = map.world_ploygon1, aes(x = long, y = lat, group = group))+
+  geom_point(color = "deepskyblue3")
+
+#=========================
+# BUBBLE DISTRIBUTION MAP
+#=========================
+# CREATE THEME
+theme.maptheeme1 <- 
+  theme(text = element_text(family = "Times New Roman", color = "#444444"))+
+  theme(plot.title = element_text(size = 30))+
+  theme(plot.subtitle = element_text(size = 18))+
+  theme(panel.background = element_rect(fill = "#FCFCFF"))+
+  theme(panel.grid = element_blank())+
+  theme(axis.text = element_blank())+
+  theme(axis.ticks = element_blank())+
+  theme(axis.title = element_blank())+
+  theme(legend.position = c(.17, .35))+
+  theme(legend.background = element_blank())+
+  theme(legend.key = element_blank())+
+  theme(legend.title = element_text(size = 16))+
+  theme(legend.text = element_text(size = 10))
+
+expsa %>%
+  filter(Year == "2015")%>%
+  ggplot(aes(x = lon, y = lat))+
+  geom_polygon(data = map.world_ploygon1, aes(x = long, y = lat, group = group), fill = "#AAAAAA", colour = "#818181", size = .15)+
+  geom_point(aes(size = Tonnes), color = "#ADFF2F", alpha = .15)+
+  geom_point(aes(size = Tonnes), color = "#00FFFF", alpha = .7, shape = 1)+
+  scale_size_continuous(range = c(.2, 10), breaks = c(500, 5000, 10000, 18000, 25000), name = "Import Volume\n(Tonnes)")+
+  labs(title = "High volume import countries were highly clustered in\nFrance and Europe in 2015")+
+  theme.maptheeme1
+ggsave("map.jpeg", width=11, height=7)
+
+
+
+
+map.world_ploygon1 <- map_data("world")
+head(map.world_ploygon1)
+expsa %>%
+  ggplot(aes(x = lon, y = lat))+
+  geom_polygon(data = map.world_ploygon1, aes(x = long, y = lat, group = group))+
+  geom_point(color = "deepskyblue3")
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
