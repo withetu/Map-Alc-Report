@@ -10,6 +10,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 ```{r}
 
 
+library(plotly)
 library(dplyr)
 library(ggalt)
 library(ggthemes)
@@ -44,40 +45,41 @@ fonts()
 #gg
 # ref: https://rud.is/b/2015/12/28/world-map-panel-plots-with-ggplot2-2-0-ggalt/
 
-geocodes.world_ports1<- geocode(expsa$Import_Country)
-expsa<- cbind(expsa, geocodes.world_ports1)
-head(expsa)
-
-expsa <- read.csv("smelters.csv")
+smelters <- read.csv("smelters.csv", header=TRUE, stringsAsFactors=FALSE)
 p <- ggplot()
-p <- p + geom_polygon( data=expsa, aes(x=long, y=lat, group = group),colour="white", fill="grey10" )
+p <- p + geom_polygon(data=smelters, aes(x=lon, y=lat),colour="white", fill="grey10" )
 p
 
-attach(expsa)
-str(expsa)
-View(expsa)
-glimpse(expsa)
+attach(smelters)
 
-geocodes.world_ports1<- geocode(expsa$Import_Country)
-expsa<- cbind(expsa, geocodes.world_ports1)
-head(expsa)
+str(smelters)
+View(smelters)
+glimpse(smelters) # this line not working 
 
-expsa<- mutate(expsa, Import_Country=as.factor(str_trim(Import_Country)), Import_Continent=as.factor(Import_Continent))
-head(expsa)
+X[, fctr.cols] <- sapply(X[, fctr.cols], as.character)
+smelters[, Country] <- sapply(smelters[, Country], as.character)
+Country <- sapply(smelters, Country)
 
-expsa<- expsa %>%
-  group_by(Year) %>%
-  mutate(rank = min_rank(desc(US_Dollar_Value))) %>%
+geocodes.world_ports1<- geocode(smelters$Country)
+smelters<- cbind(smelters, geocodes.world_ports1)
+head(smelters)
+
+smelters <- mutate(smelters, Country=as.factor(str_trim(Country)), Location=as.factor(Location))
+head(smelters)
+
+smelters<- smelters %>%
+  group_by(Country) %>%
+  mutate(rank = min_rank(desc(Plant_Capacity))) %>%
   ungroup()
-glimpse(expsa)
+glimpse(smelters)
 
-expsa %>% ncol()
-expsa %>% names()
+smelters %>% ncol()
+smelters %>% names()
 
-expsa<- select(expsa, rank, Year, Import_Country, Import_Continent, US_Dollar_Value, Tonnes, lon, lat, Data_Type, Month)
-expsa %>% ncol()
-glimpse(expsa)
-head(expsa, n =10)
+smelters<- select(smelters, rank, Country, Location, Company, Plant_Capacity, lon, lat, Data_Type)
+smelters %>% ncol()
+glimpse(smelters)
+head(smelters, n =10)
 
 theme.porttheme1 <-  
   theme(text = element_text(family = "Times New Roman", color = "#444444")) +
@@ -100,8 +102,8 @@ theme.smallmult1 <-
   theme.porttheme1 +
   theme(axis.text = element_text(size = 6)) +
   theme(axis.text.x = element_text(angle = 90))
-expsa %>%
-  filter(Year == 2017) %>%
+smelters %>%
+  #filter(Year == 2017) %>%
   ggplot(aes(x=reorder(Import_Country, desc(US_Dollar_Value)), y=US_Dollar_Value))+
   geom_bar(stat = "identity", fill = "darkred")+
   labs(title="Top Import Country")+
@@ -110,8 +112,8 @@ expsa %>%
   scale_y_continuous(labels = scales::comma_format())+
   theme.widebar1
 expsa %>%
-  filter(Year == 2017) %>%
-  ggplot(aes(x=reorder(Import_Country, US_Dollar_Value), y=US_Dollar_Value))+
+  filter(rank == 1) %>%
+  ggplot(aes(x=reorder(Country, Location), y=Plant_Capacity))+
   geom_bar(stat = "identity", fill = "seagreen1")+
   #geom_text(aes(label=US_Dollar_Value), hjust = 1:1, color="#FFFF00")+
   scale_y_continuous(labels = scales::comma_format())+
@@ -252,9 +254,6 @@ expsa %>%
   theme.maptheeme1
 ggsave("map.jpeg", width=11, height=7)
 
-
-
-
 map.world_ploygon1 <- map_data("world")
 head(map.world_ploygon1)
 expsa %>%
@@ -262,6 +261,13 @@ expsa %>%
   geom_polygon(data = map.world_ploygon1, aes(x = long, y = lat, group = group))+
   geom_point(color = "deepskyblue3")
 
+library(ggplot2)
+library(maps)
+all_states <- map_data("state")
+p <- ggplot()
+p <- p + geom_polygon(smelters, aes(x=long, y=lat, group = group),colour="white", fill="grey10" )
+p
+str(smelters)
 
 ```
 
